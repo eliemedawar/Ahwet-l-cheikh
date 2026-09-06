@@ -1,0 +1,22 @@
+{
+  "name": "kahwet-el-cheick-menu",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check:ui": "node scripts/ui-check.mjs"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "latest",
+    "vite": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "lucide-react": "^0.468.0"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.55.0"
+  }
+}
