@@ -217,3 +217,71 @@ export function SavedPulse({ savedAt }) {
 
   return <span className={`a-saved ${visible ? 'a-saved--on' : ''}`}><Check size={13} /> Saved</span>
 }
+
+/**
+ * Replaces one of the fixed brand images (logos, welcome background, story
+ * photo). Unlike ImageField there is no shared-photo fallback: an empty value
+ * means "use the artwork that ships with the site", shown here as the preview.
+ * Pass `focal` for images the storefront crops, to set the visible point.
+ */
+export function AssetField({ image, fallback, position, onChange, label, hint, focal = false, contain = false }) {
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const inputRef = useRef(null)
+
+  const handleFile = async (file) => {
+    if (!file) return
+    setBusy(true)
+    setError('')
+    try {
+      onChange({ image: await fileToDataUrl(file) })
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+      if (inputRef.current) inputRef.current.value = ''
+    }
+  }
+
+  const pickFocus = (event) => {
+    if (!focal) return
+    const rect = event.currentTarget.getBoundingClientRect()
+    const x = Math.round(((event.clientX - rect.left) / rect.width) * 100)
+    const y = Math.round(((event.clientY - rect.top) / rect.height) * 100)
+    onChange({ position: `${x}% ${y}%` })
+  }
+
+  return (
+    <div className="a-image-field">
+      <span className="a-field-label">
+        {label}
+        {image ? <em>{approxSize(image)} KB</em> : <em>built-in</em>}
+      </span>
+
+      <div className={`a-asset-preview ${contain ? 'a-asset-preview--contain' : ''}`}>
+        <button
+          type="button"
+          className="a-asset-source"
+          onClick={pickFocus}
+          title={focal ? 'Click to choose which part stays visible' : undefined}
+          style={focal ? undefined : { cursor: 'default' }}
+        >
+          <img src={image || fallback} alt="" style={{ objectPosition: position || '50% 50%' }} />
+          {focal && <span className="a-crop-dot" style={{ left: position?.split(' ')[0] || '50%', top: position?.split(' ')[1] || '50%' }} />}
+        </button>
+      </div>
+
+      <div className="a-image-actions">
+        <button className="a-btn a-btn--ghost" onClick={() => inputRef.current?.click()} disabled={busy}>
+          <ImageUp size={14} /> {busy ? 'Processing…' : image ? 'Replace' : 'Upload your own'}
+        </button>
+        {image && <button className="a-btn a-btn--ghost" onClick={() => onChange({ image: '' })}>Use the built-in image</button>}
+        {focal && <code>{position || '50% 50%'}</code>}
+      </div>
+
+      {hint && <p className="a-hint">{hint}</p>}
+      <input ref={inputRef} type="file" accept="image/*" hidden onChange={(event) => handleFile(event.target.files?.[0])} />
+      {error && <p className="a-error">{error}</p>}
+    </div>
+  )
+}

@@ -34,7 +34,6 @@ function migrate(saved) {
   if (savedVersion < 2) {
     ;[
       'tagline',
-      'welcomeTagline',
       'welcomeCta',
       'heroEyebrow',
       'heroText',
@@ -59,6 +58,14 @@ function migrate(saved) {
   // Restore the entrance disabled by the previous presentation update.
   // Later, intentional changes to the welcome toggle remain respected.
   if (savedVersion < 3) settings.showWelcome = true
+
+  // Version 4 adds per-language wording overrides. A spread would carry a
+  // half-built `text` through, so rebuild it with both languages present.
+  const savedText = saved.settings?.text
+  settings.text = {
+    en: { ...(savedText?.en || {}) },
+    ar: { ...(savedText?.ar || {}) },
+  }
 
   return {
     version: DATA_VERSION,
@@ -155,6 +162,25 @@ export const store = {
 
   updateSettings(patch) {
     commit((draft) => ({ ...draft, settings: { ...draft.settings, ...patch } }))
+  },
+
+  /** Overrides one built-in wording key for one language. Blank restores the built-in text. */
+  updateText(language, key, value) {
+    commit((draft) => {
+      const forLanguage = { ...(draft.settings.text?.[language] || {}) }
+      if (value.trim()) forLanguage[key] = value
+      else delete forLanguage[key]
+      draft.settings = { ...draft.settings, text: { ...draft.settings.text, [language]: forLanguage } }
+      return draft
+    })
+  },
+
+  /** Clears every wording override, in both languages. */
+  resetText() {
+    commit((draft) => {
+      draft.settings = { ...draft.settings, text: { en: {}, ar: {} } }
+      return draft
+    })
   },
 
   // ---- Sections ----

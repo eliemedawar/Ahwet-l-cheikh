@@ -2,16 +2,18 @@ import { createContext, useCallback, useContext, useEffect, useLayoutEffect, use
 import { ArrowRight, ArrowUpRight, ChevronDown, Coffee, Flame, Grid2X2, Info, Leaf, MapPin, Search, UtensilsCrossed, WheatOff, X } from 'lucide-react'
 import { defaultData, SHARED_IMAGE } from './data/defaults'
 import { selectMenu, useMenuData } from './lib/store'
-import { copy, dishText, readVisit, saveVisit, sectionText, settingText } from './lib/guest'
+import { dishText, readVisit, resolveCopy, saveVisit, sectionText, settingText } from './lib/guest'
 
 const Guest = createContext(null)
 const useGuest = () => useContext(Guest)
 const photographIds = new Set(defaultData.items.map(item => item.id))
 const photoFor = item => item.image || (photographIds.has(item.id) ? `/assets/dishes/${item.id}.webp` : SHARED_IMAGE)
+const asset = (custom, fallback) => custom || fallback
 const motion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'
 
 function Brand({ settings, onClick }) {
-  return <a className="house-brand" href="#menu" onClick={onClick} aria-label={`${settings.brandName} — menu`}><img src="/assets/brand-small.webp" width="100" height="62" alt={settings.arabicName} /><span>{settings.brandName}<small>BEIRUT · {settings.storyYear}</small></span></a>
+  const { t } = useGuest()
+  return <a className="house-brand" href="#menu" onClick={onClick} aria-label={`${settings.brandName} — menu`}><img src={asset(settings.logoSmall, '/assets/brand-small.webp')} width="100" height="62" alt={settings.arabicName} /><span>{settings.brandName}<small>{t.brandLocation} · {settings.storyYear}</small></span></a>
 }
 
 function FoodImage({ item, priority = false, className = '' }) {
@@ -61,11 +63,16 @@ function Welcome({ settings, onEnter, language, setLanguage }) {
   const timer = useRef(null)
   useEffect(() => { button.current?.focus({ preventScroll: true }); return () => clearTimeout(timer.current) }, [])
   const enter = () => { if (leaving) return; setLeaving(true); timer.current = setTimeout(onEnter, motion() === 'instant' ? 0 : 460) }
+  // An owner-written label wins in the language it was written for; otherwise the
+  // button uses the built-in wording, which stays translated (and stays editable).
+  const cta = (language === 'ar' ? settings.welcomeCtaArabic : '')
+    || (settings.welcomeCta !== defaultData.settings.welcomeCta ? settings.welcomeCta : '')
+    || t.enter
   return <section className={`arrival ${leaving ? 'arrival--leaving' : ''}`} aria-labelledby="arrival-title">
-    <img className="arrival-background" src="/assets/welcome-cafe.webp" alt="" fetchPriority="high" />
-    <div className="arrival-top"><span><MapPin size={14} />{settingText(settings, 'branch', language)}</span><button onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')} lang={language === 'en' ? 'ar' : 'en'}>{language === 'en' ? 'العربية' : 'English'}</button></div>
-    <div className="arrival-mark"><img src="/assets/brand-large.webp" alt={settings.arabicName} width="480" height="340" /><span>{settings.brandName}</span></div>
-    <div className="arrival-copy"><span className="overline">{settingText(settings, 'welcomeSince', language)}</span><h1 id="arrival-title">{t.welcome}<br /><em>{t.warmth}</em></h1><p>{t.welcomeText}</p><button ref={button} className="gold-button" onClick={enter} disabled={leaving}>{language === 'en' ? settings.welcomeCta : t.enter}<ArrowUpRight size={20} /></button><small>{t.signature}</small></div>
+    <img className="arrival-background" src={asset(settings.welcomeImage, '/assets/welcome-cafe.webp')} style={{ objectPosition: settings.welcomeImagePosition || '50% 58%' }} alt="" fetchPriority="high" />
+    <div className="arrival-top"><span><MapPin size={14} />{settingText(settings, 'branch', language)}</span><button onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')} lang={language === 'en' ? 'ar' : 'en'}>{t.languageSwitch}</button></div>
+    <div className="arrival-mark"><img src={asset(settings.logoLarge, '/assets/brand-large.webp')} alt={settings.arabicName} width="480" height="340" /><span>{settings.brandName}</span></div>
+    <div className="arrival-copy"><span className="overline">{settingText(settings, 'welcomeSince', language)}</span><h1 id="arrival-title">{t.welcome}<br /><em>{t.warmth}</em></h1><p>{t.welcomeText}</p><button ref={button} className="gold-button" onClick={enter} disabled={leaving}>{cta}<ArrowUpRight size={20} /></button><small>{t.signature}</small></div>
   </section>
 }
 
@@ -77,7 +84,7 @@ function DishCard({ item, featured, onOpen, money }) {
       {featured && <span className="overline featured-label"><span className="tiny-diamond" />{t.favourite}</span>}
       <span className="dish-name">{text.title}</span>{text.secondary && <span className="dish-secondary" lang={language === 'en' ? 'ar' : 'en'}>{text.secondary}</span>}
       {text.description && <span className="dish-description">{text.description}</span>}<DietBadges item={item} /><span className="dish-price" dir="ltr">{money(item.price)}</span>
-      {item.available === false && <span className="availability">{t.unavailable}</span>}{featured && <span className="featured-explore">{language === 'en' ? 'Meet your next favourite' : 'اكتشف طبقك المفضّل'}<ArrowUpRight size={17} /></span>}
+      {item.available === false && <span className="availability">{t.unavailable}</span>}{featured && <span className="featured-explore">{t.featuredExplore}<ArrowUpRight size={17} /></span>}
     </span></button>
   </article>
 }
@@ -99,7 +106,7 @@ export default function App() {
   const { settings } = data
   const { sections, items } = useMemo(() => selectMenu(data), [data])
   const [language, setLanguage] = useState(() => readVisit('language', 'en') === 'ar' ? 'ar' : 'en')
-  const t = copy[language]
+  const t = useMemo(() => resolveCopy(settings, language), [settings, language])
   const [welcome, setWelcome] = useState(() => settings.showWelcome !== false && !window.location.hash)
   const [overlay, setOverlay] = useState(null)
   const overlayRef = useRef(null)
@@ -146,7 +153,7 @@ export default function App() {
   return <Guest.Provider value={context}><div className="dining-app" dir={language === 'ar' ? 'rtl' : 'ltr'}>
     {welcome ? <Welcome settings={settings} onEnter={enter} language={language} setLanguage={setLanguage} /> : <><div inert={overlay ? true : undefined}>
       <a className="skip-link" href="#menu-title">{t.menu}</a>
-      <header className="dining-header"><div className="dining-container header-layout"><Brand settings={settings} onClick={event => { event.preventDefault(); goTo('all') }} /><div className="header-controls"><button className="language-button" lang={language === 'en' ? 'ar' : 'en'} onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')}>{language === 'en' ? 'ع' : 'EN'}<span className="sr-only">{language === 'en' ? 'العربية' : 'English'}</span></button><button className="round-button" onClick={() => openOverlay({ type: 'info' })} aria-label={t.info}><Info size={21} strokeWidth={1.5} /></button></div></div></header>
+      <header className="dining-header"><div className="dining-container header-layout"><Brand settings={settings} onClick={event => { event.preventDefault(); goTo('all') }} /><div className="header-controls"><button className="language-button" lang={language === 'en' ? 'ar' : 'en'} onClick={() => setLanguage(language === 'en' ? 'ar' : 'en')}>{t.languageSwitchShort}<span className="sr-only">{t.languageSwitch}</span></button><button className="round-button" onClick={() => openOverlay({ type: 'info' })} aria-label={t.info}><Info size={21} strokeWidth={1.5} /></button></div></div></header>
       <main><section className="menu-section" id="menu" aria-labelledby="menu-title">
         <div className="dining-container menu-introduction"><div className="intro-topline"><span className="overline">{t.dine}</span><span className="intro-location">{settingText(settings, 'branch', language)}</span></div><h1 id="menu-title" tabIndex={-1}>{settingText(settings, 'menuTitle', language)}</h1><p>{t.intro}</p><span className="intro-flourish" aria-hidden="true">✧</span></div>
         <div className="category-bar"><div className="dining-container category-bar-inner"><nav ref={categoryRef} className="category-rail" aria-label={t.categories}><button data-category="all" aria-current={active === 'all' ? 'true' : undefined} onClick={() => goTo('all')}>{t.all}</button>{sections.map(section => <button key={section.id} data-category={section.id} aria-current={active === section.id ? 'true' : undefined} onClick={() => goTo(section.id)}>{sectionText(section, language).name}</button>)}</nav><button className="category-browser" aria-label={t.categories} onClick={() => openOverlay({ type: 'categories' })}><Grid2X2 size={19} strokeWidth={1.5} /></button></div></div>
@@ -157,12 +164,12 @@ export default function App() {
           <button className="allergy-note" onClick={() => openOverlay({ type: 'info' })}><Leaf size={18} strokeWidth={1.4} /><span>{t.allergy}<small>{t.allergyText}</small></span><ArrowUpRight size={18} /></button>
         </div>
       </section>
-      {settings.showStory && <section className="house-story" id="story"><div className="dining-container story-layout"><div className="story-photograph"><img src="/assets/hospitality.webp" width="800" height="1000" loading="lazy" alt={language === 'en' ? 'Coffee poured slowly, a moment of Lebanese hospitality' : 'قهوة تُسكب على مهل، لحظة ضيافة لبنانية'} /><span className="story-photo-caption">{settingText(settings, 'welcomeSince', language)}<span>BEIRUT</span></span></div><div className="story-editorial"><span className="overline">{t.discover}</span><h2>{settingText(settings, 'storyTitle', language).split('\n').map((line, index) => <span key={line}>{index > 0 ? <em>{line}</em> : line}</span>)}</h2><p className={storyExpanded ? '' : 'story-excerpt'}>{settingText(settings, 'storyText', language)}</p><button className="text-link" aria-expanded={storyExpanded} onClick={() => setStoryExpanded(!storyExpanded)}>{storyExpanded ? t.less : t.read}<ChevronDown size={16} className={storyExpanded ? 'rotated' : ''} /></button><span className="story-signature" lang="ar">{settings.footerNote}</span></div></div></section>}
+      {settings.showStory && <section className="house-story" id="story"><div className="dining-container story-layout"><div className="story-photograph"><img src={asset(settings.storyImage, '/assets/hospitality.webp')} style={{ objectPosition: settings.storyImagePosition || '50% 50%' }} width="800" height="1000" loading="lazy" alt={t.storyPhotoAlt} /><span className="story-photo-caption">{settingText(settings, 'welcomeSince', language)}<span>{t.storyPhotoCity}</span></span></div><div className="story-editorial"><span className="overline">{t.discover}</span><h2>{settingText(settings, 'storyTitle', language).split('\n').map((line, index) => <span key={line}>{index > 0 ? <em>{line}</em> : line}</span>)}</h2><p className={storyExpanded ? '' : 'story-excerpt'}>{settingText(settings, 'storyText', language)}</p><button className="text-link" aria-expanded={storyExpanded} onClick={() => setStoryExpanded(!storyExpanded)}>{storyExpanded ? t.less : t.read}<ChevronDown size={16} className={storyExpanded ? 'rotated' : ''} /></button><span className="story-signature" lang="ar">{settings.footerNote}</span></div></div></section>}
       </main>
       <footer className="dining-footer"><div className="dining-container footer-layout"><Brand settings={settings} onClick={event => { event.preventDefault(); goTo('all') }} /><p>{settingText(settings, 'branch', language)}<br />{settingText(settings, 'hours', language)}</p><button className="text-link" onClick={() => goTo('all')}>{t.return}<ArrowUpRight size={17} /></button><small>© {new Date().getFullYear()} {settings.brandName}<span>{t.signature}</span></small></div></footer>
     </div>
     {overlay?.type === 'dish' && (() => { const item = items.find(item => item.id === overlay.id); return item ? <DishDetails item={item} section={sections.find(section => section.id === item.sectionId)} money={money} onClose={closeOverlay} /> : <Sheet title={t.unavailable} onClose={closeOverlay}><p className="sheet-padding">{t.availableHelp}</p></Sheet> })()}
-    {overlay?.type === 'categories' && <Sheet title={t.menu} onClose={closeOverlay} className="categories-sheet"><div className="sheet-padding"><form className="menu-search" onSubmit={event => { event.preventDefault(); closeOverlay(); requestAnimationFrame(() => document.getElementById('menu')?.scrollIntoView({ behavior: motion() })) }}><Search size={19} /><input aria-label={t.search} placeholder={t.search} value={search} onChange={event => setSearch(event.target.value)} type="search" enterKeyHint="search" /><button type="submit" className="round-button" aria-label={t.search}><ArrowRight size={19} /></button></form>{search && <button className="search-preview" onClick={closeOverlay}>{filtered.length} {t.results}<ArrowRight size={17} /></button>}<div className="category-directory"><button onClick={() => goTo('all')}><span className="directory-number">✧</span><span>{language === 'en' ? 'The whole menu' : 'القائمة كاملة'}</span><small>{items.length}</small><ArrowUpRight size={18} /></button>{sections.map((section, index) => <button key={section.id} onClick={() => goTo(section.id)}><span className="directory-number">{String(index + 1).padStart(2, '0')}</span><span>{sectionText(section, language).name}<small>{sectionText(section, language).eyebrow}</small></span><small>{items.filter(item => item.sectionId === section.id).length}</small><ArrowUpRight size={18} /></button>)}</div></div></Sheet>}
+    {overlay?.type === 'categories' && <Sheet title={t.menu} onClose={closeOverlay} className="categories-sheet"><div className="sheet-padding"><form className="menu-search" onSubmit={event => { event.preventDefault(); closeOverlay(); requestAnimationFrame(() => document.getElementById('menu')?.scrollIntoView({ behavior: motion() })) }}><Search size={19} /><input aria-label={t.search} placeholder={t.search} value={search} onChange={event => setSearch(event.target.value)} type="search" enterKeyHint="search" /><button type="submit" className="round-button" aria-label={t.search}><ArrowRight size={19} /></button></form>{search && <button className="search-preview" onClick={closeOverlay}>{filtered.length} {t.results}<ArrowRight size={17} /></button>}<div className="category-directory"><button onClick={() => goTo('all')}><span className="directory-number">✧</span><span>{t.wholeMenu}</span><small>{items.length}</small><ArrowUpRight size={18} /></button>{sections.map((section, index) => <button key={section.id} onClick={() => goTo(section.id)}><span className="directory-number">{String(index + 1).padStart(2, '0')}</span><span>{sectionText(section, language).name}<small>{sectionText(section, language).eyebrow}</small></span><small>{items.filter(item => item.sectionId === section.id).length}</small><ArrowUpRight size={18} /></button>)}</div></div></Sheet>}
     {overlay?.type === 'info' && <Sheet title={t.info} onClose={closeOverlay}><div className="sheet-padding visit-information"><Brand settings={settings} onClick={event => { event.preventDefault(); goTo('all') }} /><div><MapPin size={20} /><p><span className="overline">{t.location}</span>{settingText(settings, 'branch', language)}<small>{settingText(settings, 'hours', language)}</small></p></div><div><UtensilsCrossed size={20} /><p>{t.service}<small>{t.serviceText}</small></p></div><div><Leaf size={20} /><p>{t.allergy}<small>{settingText(settings, 'menuNote', language) || t.allergyText}</small></p></div>{settings.showStory && <button className="outline-button" onClick={() => goTo('story')}>{t.story}<ArrowUpRight size={18} /></button>}</div></Sheet>}
     </>}
   </div></Guest.Provider>

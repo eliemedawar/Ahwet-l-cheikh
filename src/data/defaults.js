@@ -1,6 +1,6 @@
 export const SHARED_IMAGE = '/assets/lebanese-table.png'
 
-export const DATA_VERSION = 3
+export const DATA_VERSION = 4
 
 const section = (id, name, eyebrow, icon, position) => ({
   id,
@@ -41,7 +41,6 @@ export const defaultData = {
     branch: 'Achrafieh, Beirut',
     hours: 'Daily · 7:00–23:00',
     topbarNote: 'Beirut warmth, ready in',
-    welcomeTagline: 'A table in Beirut',
     welcomeSince: 'Since 1998',
     welcomeCta: 'View the menu',
     heroEyebrow: 'Lebanese café · Beirut',
@@ -76,6 +75,12 @@ export const defaultData = {
     storyYear: '1998',
     footerNote: 'أهلاً وسهلاً',
     footerLine: 'Lebanese coffee, breakfast & warm hospitality.',
+    logoSmall: '',
+    logoLarge: '',
+    welcomeImage: '',
+    welcomeImagePosition: '50% 58%',
+    storyImage: '',
+    storyImagePosition: '50% 50%',
     showRating: false,
     showFloatingCard: false,
     showSeal: false,
@@ -86,6 +91,7 @@ export const defaultData = {
     showStory: true,
     showCategories: false,
     orderingEnabled: false,
+    text: { en: {}, ar: {} },
   },
   sections: [
     section('manakish', 'Manakish', 'From the oven', 'Pizza', '50% 50%'),

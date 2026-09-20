@@ -12,6 +12,7 @@ import {
   Plus,
   Redo2,
   RotateCcw,
+  Languages,
   Search,
   Settings2,
   Store,
@@ -21,15 +22,18 @@ import {
   UtensilsCrossed,
 } from 'lucide-react'
 import { emptyItem, emptySection } from '../data/defaults'
+import { copy } from '../lib/guest'
 import { getIcon } from '../lib/icons'
 import { store, useMenuData, useStoreStatus } from '../lib/store'
-import { ConfirmButton, Field, IconPicker, ImageField, SavedPulse, Toggle, useDragList } from './fields'
+import { AssetField, ConfirmButton, Field, IconPicker, ImageField, SavedPulse, Toggle, useDragList } from './fields'
+import { isLongText, wordingGroups } from './wording'
 import './admin.css'
 
 const TABS = [
   { id: 'sections', label: 'Sections', Icon: LayoutGrid },
   { id: 'items', label: 'Menu items', Icon: UtensilsCrossed },
   { id: 'content', label: 'Content', Icon: Type },
+  { id: 'wording', label: 'Wording', Icon: Languages },
   { id: 'data', label: 'Data', Icon: Settings2 },
 ]
 
@@ -71,7 +75,9 @@ function SectionRow({ section, itemCount, sections, dragProps }) {
         <div className="a-row-body">
           <div className="a-grid">
             <Field label="Name"><input value={section.name} onChange={(e) => store.updateSection(section.id, { name: e.target.value })} /></Field>
+            <Field label="Name — العربية" hint="blank uses the English"><input value={section.arabic || ''} dir="rtl" lang="ar" onChange={(e) => store.updateSection(section.id, { arabic: e.target.value })} /></Field>
             <Field label="Subtitle" hint="shown on the card"><input value={section.eyebrow} onChange={(e) => store.updateSection(section.id, { eyebrow: e.target.value })} /></Field>
+            <Field label="Subtitle — العربية" hint="blank uses the English"><input value={section.eyebrowArabic || ''} dir="rtl" lang="ar" onChange={(e) => store.updateSection(section.id, { eyebrowArabic: e.target.value })} /></Field>
             <Field label="Icon"><IconPicker value={section.icon} onChange={(icon) => store.updateSection(section.id, { icon })} /></Field>
             {itemCount > 0 && others.length > 0 && (
               <Field label="On delete, move items to">
@@ -197,6 +203,9 @@ function ItemRow({ item, sections, currency, dragProps }) {
             <Field label="Badge" hint="corner label"><input value={item.tag} placeholder="e.g. House favorite" onChange={(e) => set({ tag: e.target.value })} /></Field>
             <Field label="Description" wide>
               <textarea rows="2" value={item.description} onChange={(e) => set({ description: e.target.value })} />
+            </Field>
+            <Field label="Description — العربية" hint="blank uses the English" wide>
+              <textarea rows="2" value={item.descriptionArabic || ''} dir="rtl" lang="ar" onChange={(e) => set({ descriptionArabic: e.target.value })} />
             </Field>
           </div>
 
@@ -345,133 +354,109 @@ function ContentPanel({ data }) {
     </div>
   )
 
+  /** An English field and its Arabic counterpart. Blank Arabic falls back to the English. */
+  const pair = (key, label, { hint = '', rows = 0, wide = false } = {}) => {
+    const arabicKey = `${key}Arabic`
+    const control = (value, onChange, dir) => (rows
+      ? <textarea rows={rows} value={value} dir={dir} lang={dir === 'rtl' ? 'ar' : 'en'} onChange={(e) => onChange(e.target.value)} />
+      : <input value={value} dir={dir} lang={dir === 'rtl' ? 'ar' : 'en'} onChange={(e) => onChange(e.target.value)} />)
+    return (
+      <>
+        <Field label={label} hint={hint} wide={wide}>{control(s[key] ?? '', (v) => set({ [key]: v }), 'ltr')}</Field>
+        <Field label={`${label} — العربية`} hint="blank uses the English" wide={wide}>
+          {control(s[arabicKey] ?? '', (v) => set({ [arabicKey]: v }), 'rtl')}
+        </Field>
+      </>
+    )
+  }
+
   return (
     <div className="a-panel">
       <div className="a-panel-head">
         <div>
           <h2>Content</h2>
-          <p>Every piece of text and every toggle on the storefront.</p>
+          <p>The café's own details. For the site's fixed words — headings, badges, buttons — use the Wording tab.</p>
         </div>
       </div>
 
       {group('Café', 'name, branch, hours', <>
         <Field label="Café name"><input value={s.brandName} onChange={(e) => set({ brandName: e.target.value })} /></Field>
-        <Field label="Arabic name"><input value={s.arabicName} dir="rtl" lang="ar" onChange={(e) => set({ arabicName: e.target.value })} /></Field>
-        <Field label="Branch / address"><input value={s.branch} onChange={(e) => set({ branch: e.target.value })} /></Field>
-        <Field label="Opening hours"><input value={s.hours} onChange={(e) => set({ hours: e.target.value })} /></Field>
-        <Field label="Footer tagline" wide><textarea rows="2" value={s.tagline} onChange={(e) => set({ tagline: e.target.value })} /></Field>
-      </>)}
-
-      {group('Menu details', 'currency display', <>
+        <Field label="Arabic name" hint="alt text for the logo"><input value={s.arabicName} dir="rtl" lang="ar" onChange={(e) => set({ arabicName: e.target.value })} /></Field>
+        {pair('branch', 'Branch / address')}
+        {pair('hours', 'Opening hours')}
         <Field label="Currency symbol"><input value={s.currency} maxLength={4} onChange={(e) => set({ currency: e.target.value })} /></Field>
+        <Field label="Year beside the city" hint="under the logo"><input value={s.storyYear} onChange={(e) => set({ storyYear: e.target.value })} /></Field>
       </>)}
 
       {group('Welcome screen', 'the full-screen intro', <>
-        <Field label="Tagline"><input value={s.welcomeTagline} onChange={(e) => set({ welcomeTagline: e.target.value })} /></Field>
-        <Field label="Since line"><input value={s.welcomeSince} onChange={(e) => set({ welcomeSince: e.target.value })} /></Field>
-        <Field label="Button label"><input value={s.welcomeCta} onChange={(e) => set({ welcomeCta: e.target.value })} /></Field>
+        {pair('welcomeSince', 'Since line')}
+        {pair('welcomeCta', 'Button label')}
       </>)}
 
-      {group('Hero text', 'the first thing guests read', <>
-        <Field label="Eyebrow" wide><input value={s.heroEyebrow} onChange={(e) => set({ heroEyebrow: e.target.value })} /></Field>
-        <Field label="Headline line 1"><input value={s.heroTitle} onChange={(e) => set({ heroTitle: e.target.value })} /></Field>
-        <Field label="Headline line 2" hint="shown in gold"><input value={s.heroTitleAccent} onChange={(e) => set({ heroTitleAccent: e.target.value })} /></Field>
-        <Field label="Intro paragraph" wide><textarea rows="2" value={s.heroText} onChange={(e) => set({ heroText: e.target.value })} /></Field>
-      </>)}
+      <p className="a-hint a-hint--standalone">
+        The welcome headline, paragraph and signature live in the <b>Wording</b> tab, with the rest of the site's fixed text.
+      </p>
 
-      {group('Hero buttons', 'the two calls to action', <>
-        <Field label="Main button"><input value={s.heroPrimaryCta} onChange={(e) => set({ heroPrimaryCta: e.target.value })} /></Field>
-        <Field label="Second button" hint="opens the featured dish"><input value={s.heroSecondaryCta} onChange={(e) => set({ heroSecondaryCta: e.target.value })} /></Field>
-        <Field label="Second button icon"><IconPicker value={s.heroSecondaryIcon} onChange={(heroSecondaryIcon) => set({ heroSecondaryIcon })} /></Field>
-      </>)}
-
-      {group('Hero badge', 'the two circles and the line beside them', <>
-        <Field label="Left circle" hint="a year — keep it short"><input value={s.heroAvatarYear} maxLength={6} onChange={(e) => set({ heroAvatarYear: e.target.value })} /></Field>
-        <Field label="Right circle" hint="Arabic — keep it short"><input value={s.heroAvatarArabic} maxLength={8} dir="rtl" lang="ar" onChange={(e) => set({ heroAvatarArabic: e.target.value })} /></Field>
-        <Field label="Badge title"><input value={s.heroProofTitle} onChange={(e) => set({ heroProofTitle: e.target.value })} /></Field>
-        <Field label="Badge subtitle"><input value={s.heroProofText} onChange={(e) => set({ heroProofText: e.target.value })} /></Field>
-      </>)}
-
-      <div className="a-group">
-        <h3>Hero photo <em>the big image beside the headline</em></h3>
-        <div className="a-card">
-          <ImageField
-            label={s.heroImage ? 'Custom hero photo' : 'Shared photo crop'}
-            image={s.heroImage}
-            position={s.heroImagePosition}
-            onChange={(patch) => set({
-              ...(patch.image !== undefined ? { heroImage: patch.image } : {}),
-              ...(patch.position !== undefined ? { heroImagePosition: patch.position } : {}),
-            })}
-          />
-          {!s.heroImage && <p className="a-hint">Click the photo to choose which part shows, or upload your own image instead.</p>}
-        </div>
-      </div>
-
-      {group('Floating dish card', 'the card over the hero photo', <>
-        <Field label="Label"><input value={s.floatingCardLabel} onChange={(e) => set({ floatingCardLabel: e.target.value })} /></Field>
-        <Field label="Icon"><IconPicker value={s.floatingCardIcon} onChange={(floatingCardIcon) => set({ floatingCardIcon })} /></Field>
-        <Field label="Rating value"><input value={s.ratingValue} onChange={(e) => set({ ratingValue: e.target.value })} /></Field>
-        <Field label="Rating label"><input value={s.ratingLabel} onChange={(e) => set({ ratingLabel: e.target.value })} /></Field>
-      </>)}
-
-      {group('Round seal', 'the circle at the corner of the photo', <>
-        <Field label="Title"><input value={s.sealTitle} onChange={(e) => set({ sealTitle: e.target.value })} /></Field>
-        <Field label="Subtitle"><input value={s.sealSubtitle} onChange={(e) => set({ sealSubtitle: e.target.value })} /></Field>
-        <Field label="Icon"><IconPicker value={s.sealIcon} onChange={(sealIcon) => set({ sealIcon })} /></Field>
-      </>)}
-
-      {group('Section headings', 'category and menu blocks', <>
-        <Field label="Categories eyebrow"><input value={s.categoryEyebrow} onChange={(e) => set({ categoryEyebrow: e.target.value })} /></Field>
-        <Field label="Categories heading"><input value={s.categoryTitle} onChange={(e) => set({ categoryTitle: e.target.value })} /></Field>
-        <Field label="Categories intro" wide><textarea rows="2" value={s.categoryText} onChange={(e) => set({ categoryText: e.target.value })} /></Field>
-        <Field label="Menu eyebrow"><input value={s.menuEyebrow} onChange={(e) => set({ menuEyebrow: e.target.value })} /></Field>
-        <Field label="Menu heading"><input value={s.menuTitle} onChange={(e) => set({ menuTitle: e.target.value })} /></Field>
-        <Field label="Guest note" hint="allergy or service guidance" wide><textarea rows="2" value={s.menuNote || ''} onChange={(e) => set({ menuNote: e.target.value })} /></Field>
+      {group('Menu page', 'the heading guests read first', <>
+        {pair('menuTitle', 'Heading')}
+        {pair('menuNote', 'Guest note', { hint: 'allergy or service guidance', rows: 2, wide: true })}
       </>)}
 
       {group('Our story', 'the about block', <>
-        <Field label="Eyebrow"><input value={s.storyEyebrow} onChange={(e) => set({ storyEyebrow: e.target.value })} /></Field>
-        <Field label="Year"><input value={s.storyYear} onChange={(e) => set({ storyYear: e.target.value })} /></Field>
-        <Field label="Heading" hint="one line break allowed" wide><textarea rows="2" value={s.storyTitle} onChange={(e) => set({ storyTitle: e.target.value })} /></Field>
-        <Field label="Paragraph" wide><textarea rows="4" value={s.storyText} onChange={(e) => set({ storyText: e.target.value })} /></Field>
+        {pair('storyTitle', 'Heading', { hint: 'one line break allowed', rows: 2, wide: true })}
+        {pair('storyText', 'Paragraph', { rows: 4, wide: true })}
+        <Field label="Arabic signature" hint="the script under the story"><input value={s.footerNote} dir="rtl" lang="ar" onChange={(e) => set({ footerNote: e.target.value })} /></Field>
       </>)}
 
       <div className="a-group">
-        <h3>Story highlights <em>the three points beside the story</em></h3>
-        <div className="a-list">
-          {data.storyValues.map((value) => (
-            <div className="a-row a-row--flat" key={value.id}>
-              <div className="a-row-head">
-                <IconPicker value={value.icon} onChange={(icon) => store.updateStoryValue(value.id, { icon })} />
-                <input className="a-inline-input" value={value.title} onChange={(e) => store.updateStoryValue(value.id, { title: e.target.value })} />
-                <input className="a-inline-input a-inline-input--muted" value={value.text} onChange={(e) => store.updateStoryValue(value.id, { text: e.target.value })} />
-                <ConfirmButton onConfirm={() => store.removeStoryValue(value.id)} />
-              </div>
-            </div>
-          ))}
+        <h3>Images <em>the artwork built into the site</em></h3>
+        <div className="a-card a-asset-grid">
+          <AssetField
+            label="Logo — header & footer"
+            image={s.logoSmall}
+            fallback="/assets/brand-small.webp"
+            contain
+            onChange={({ image }) => set({ logoSmall: image })}
+          />
+          <AssetField
+            label="Logo — welcome screen"
+            image={s.logoLarge}
+            fallback="/assets/brand-large.webp"
+            contain
+            onChange={({ image }) => set({ logoLarge: image })}
+          />
+          <AssetField
+            label="Welcome background"
+            image={s.welcomeImage}
+            fallback="/assets/welcome-cafe.webp"
+            position={s.welcomeImagePosition}
+            focal
+            hint="Click the photo to choose which part stays visible on a phone."
+            onChange={({ image, position }) => set({
+              ...(image !== undefined ? { welcomeImage: image } : {}),
+              ...(position !== undefined ? { welcomeImagePosition: position } : {}),
+            })}
+          />
+          <AssetField
+            label="Story photo"
+            image={s.storyImage}
+            fallback="/assets/hospitality.webp"
+            position={s.storyImagePosition}
+            focal
+            onChange={({ image, position }) => set({
+              ...(image !== undefined ? { storyImage: image } : {}),
+              ...(position !== undefined ? { storyImagePosition: position } : {}),
+            })}
+          />
         </div>
-        <button className="a-btn a-btn--ghost" onClick={() => store.addStoryValue({ icon: 'Leaf', title: 'New highlight', text: 'Say something good' })}>
-          <Plus size={14} /> Add highlight
-        </button>
       </div>
-
-      {group('Footer', '', <>
-        <Field label="Arabic footer note"><input value={s.footerNote} dir="rtl" lang="ar" onChange={(e) => set({ footerNote: e.target.value })} /></Field>
-        <Field label="Bottom line"><input value={s.footerLine} onChange={(e) => set({ footerLine: e.target.value })} /></Field>
-      </>)}
 
       <div className="a-group">
         <h3>Show or hide <em>turn whole blocks on and off</em></h3>
         <div className="a-card">
           <div className="a-toggles">
             <Toggle checked={s.showWelcome} onChange={(v) => set({ showWelcome: v })} label="Welcome screen" hint="Full-screen intro" />
-            <Toggle checked={s.showCategories} onChange={(v) => set({ showCategories: v })} label="Category cards" />
-            <Toggle checked={s.showHeroButtons !== false} onChange={(v) => set({ showHeroButtons: v })} label="Hero buttons" />
-            <Toggle checked={s.showHeroProof !== false} onChange={(v) => set({ showHeroProof: v })} label="Hero badge" hint="Circles + tagline" />
-            <Toggle checked={s.showFloatingCard !== false} onChange={(v) => set({ showFloatingCard: v })} label="Floating dish card" />
-            <Toggle checked={s.showRating} onChange={(v) => set({ showRating: v })} label="Rating badge" />
-            <Toggle checked={s.showSeal !== false} onChange={(v) => set({ showSeal: v })} label="Round seal" hint="Fresh / Daily" />
+            <Toggle checked={s.showCategories} onChange={(v) => set({ showCategories: v })} label="Category shortcuts" hint="Buttons above the dishes" />
             <Toggle checked={s.showStory} onChange={(v) => set({ showStory: v })} label="Our story section" />
           </div>
         </div>
@@ -561,6 +546,110 @@ function DataPanel({ data }) {
   )
 }
 
+/* ------------------------------------------------------------------- Wording */
+
+/**
+ * One built-in string, in both languages. The input shows the override; the
+ * placeholder shows the wording the site falls back to, so emptying a field is
+ * how you undo a change.
+ */
+function WordingRow({ field, overrides }) {
+  const long = isLongText(copy.en[field.key]) || isLongText(copy.ar[field.key])
+
+  const input = (language, dir) => {
+    const value = overrides[language]?.[field.key] ?? ''
+    const props = {
+      value,
+      dir,
+      lang: language,
+      placeholder: copy[language][field.key],
+      onChange: (event) => store.updateText(language, field.key, event.target.value),
+    }
+    return long ? <textarea rows="2" {...props} /> : <input {...props} />
+  }
+
+  const changed = Boolean(overrides.en?.[field.key] || overrides.ar?.[field.key])
+
+  return (
+    <div className={`a-word ${changed ? 'a-word--changed' : ''}`}>
+      <span className="a-word-label">
+        {field.label}
+        {field.hint && <em>{field.hint}</em>}
+      </span>
+      <div className="a-word-inputs">
+        <label><span>English</span>{input('en', 'ltr')}</label>
+        <label><span>العربية</span>{input('ar', 'rtl')}</label>
+      </div>
+      {changed && (
+        <button
+          className="a-word-reset"
+          title="Restore the built-in wording"
+          onClick={() => { store.updateText('en', field.key, ''); store.updateText('ar', field.key, '') }}
+        >
+          <RotateCcw size={12} /> Reset
+        </button>
+      )}
+    </div>
+  )
+}
+
+function WordingPanel({ data }) {
+  const [query, setQuery] = useState('')
+  const overrides = data.settings.text || { en: {}, ar: {} }
+  const changedCount = new Set([...Object.keys(overrides.en || {}), ...Object.keys(overrides.ar || {})]).size
+
+  const groups = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return wordingGroups
+    return wordingGroups
+      .map((group) => ({
+        ...group,
+        fields: group.fields.filter((field) =>
+          [field.label, field.key, copy.en[field.key], copy.ar[field.key], overrides.en?.[field.key], overrides.ar?.[field.key]]
+            .join(' ')
+            .toLowerCase()
+            .includes(q),
+        ),
+      }))
+      .filter((group) => group.fields.length)
+  }, [query, overrides])
+
+  return (
+    <div className="a-panel">
+      <div className="a-panel-head">
+        <div>
+          <h2>Wording</h2>
+          <p>Every fixed word on the site, in both languages. Leave a field empty to keep the built-in wording.</p>
+        </div>
+        {changedCount > 0 && (
+          <ConfirmButton
+            label={`Reset all ${changedCount}`}
+            title="Reset every changed word"
+            className="a-btn a-btn--ghost"
+            onConfirm={() => store.resetText()}
+          />
+        )}
+      </div>
+
+      <div className="a-search">
+        <Search size={15} />
+        <input value={query} placeholder="Search the wording…" onChange={(event) => setQuery(event.target.value)} />
+      </div>
+
+      {groups.map((group) => (
+        <div className="a-group" key={group.title}>
+          <h3>{group.title} <em>{group.hint}</em></h3>
+          <div className="a-card a-words">
+            {group.fields.map((field) => <WordingRow key={field.key} field={field} overrides={overrides} />)}
+          </div>
+        </div>
+      ))}
+
+      {!groups.length && <p className="a-hint">Nothing matches “{query}”.</p>}
+    </div>
+  )
+}
+
 /* --------------------------------------------------------------------- Shell */
 
 export default function AdminApp() {
@@ -569,7 +658,7 @@ export default function AdminApp() {
   const [tab, setTab] = useState('sections')
   const [navOpen, setNavOpen] = useState(false)
 
-  const Panel = { sections: SectionsPanel, items: ItemsPanel, content: ContentPanel, data: DataPanel }[tab]
+  const Panel = { sections: SectionsPanel, items: ItemsPanel, content: ContentPanel, wording: WordingPanel, data: DataPanel }[tab]
 
   const counts = {
     sections: data.sections.length,

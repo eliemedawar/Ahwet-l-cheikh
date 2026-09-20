@@ -24,6 +24,9 @@ export const copy = {
     hours: 'Opening hours', location: 'Find us here', signature: 'Lebanese soul. Timeless hospitality.',
     imageMissing: 'Prepared with care',
     dietary: 'Dietary information', availableHelp: 'Our team can help you choose something else.',
+    brandLocation: 'BEIRUT', featuredExplore: 'Meet your next favourite', wholeMenu: 'The whole menu',
+    storyPhotoAlt: 'Coffee poured slowly, a moment of Lebanese hospitality', storyPhotoCity: 'BEIRUT',
+    languageSwitch: 'العربية', languageSwitchShort: 'ع',
   },
   ar: {
     menu: 'القائمة',
@@ -41,6 +44,9 @@ export const copy = {
     hours: 'ساعات العمل', location: 'موقعنا', signature: 'روح لبنانية. ضيافة لا يغيّرها الزمن.',
     imageMissing: 'محضّر بعناية',
     dietary: 'معلومات غذائية', availableHelp: 'يساعدك فريقنا في اختيار طبق آخر.',
+    brandLocation: 'بيروت', featuredExplore: 'اكتشف طبقك المفضّل', wholeMenu: 'القائمة كاملة',
+    storyPhotoAlt: 'قهوة تُسكب على مهل، لحظة ضيافة لبنانية', storyPhotoCity: 'بيروت',
+    languageSwitch: 'English', languageSwitchShort: 'EN',
   },
 }
 const arabicSections = { manakish: ['مناقيش', 'من الفرن'], breakfast: ['فطور', 'طوال اليوم'], coffee: ['قهوة', 'على مهل'], desserts: ['حلويات', 'ختام حلو'] }
@@ -76,4 +82,24 @@ export function settingText(settings, key, language) {
     storyText: 'بدأت قهوة الشيخ بوعد بسيط: أطباق لبنانية صادقة، وضيافة دافئة، وقهوة تُسكب على مهل. ما زلنا نخبز عجينتنا كل صباح ونستقبل كل ضيف كصديق قديم.',
     branch: 'الأشرفية، بيروت', hours: 'يومياً · ٧:٠٠–٢٣:٠٠', welcomeSince: 'منذ ١٩٩٨', menuNote: copy.ar.allergyText,
   }[key] || settings[key]
+}
+
+/** Every wording key the storefront can render, in the order the admin lists them. */
+export const copyKeys = Object.keys(copy.en)
+
+/**
+ * The guest-facing dictionary for a language: the built-in wording, with any
+ * per-language override the owner typed in the admin laid over it. A blank
+ * override means "keep the built-in wording", so clearing a field restores it.
+ */
+export function resolveCopy(settings, language) {
+  const base = copy[language] || copy.en
+  const overrides = settings?.text?.[language]
+  if (!overrides) return base
+  const merged = { ...base }
+  for (const key of copyKeys) {
+    const value = overrides[key]
+    if (typeof value === 'string' && value.trim()) merged[key] = value
+  }
+  return merged
 }

@@ -248,3 +248,34 @@
 @media (prefers-reduced-motion: reduce) {
   .a-shell *, .a-shell *::before, .a-shell *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* ---- brand artwork picker ---- */
+.a-asset-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 22px; }
+.a-asset-preview { border: 1px solid var(--a-line); border-radius: 10px; overflow: hidden; background: #0f0f0e; }
+.a-asset-source { position: relative; display: block; width: 100%; padding: 0; border: 0; background: none; line-height: 0; cursor: crosshair; }
+.a-asset-source img { width: 100%; height: 130px; object-fit: cover; opacity: .9; }
+.a-asset-source:hover img { opacity: 1; }
+.a-asset-preview--contain img { object-fit: contain; padding: 12px; background: #131312; }
+
+/* ---- wording editor ---- */
+.a-words { display: flex; flex-direction: column; gap: 4px; padding: 6px; }
+.a-word { position: relative; padding: 11px 12px; border-radius: 10px; }
+.a-word:hover { background: rgba(255,255,255,.025); }
+.a-word--changed { background: rgba(242,183,5,.05); box-shadow: inset 2px 0 0 var(--a-gold); }
+.a-word-label { display: flex; align-items: baseline; flex-wrap: wrap; gap: 7px; margin-bottom: 7px; font-size: 12px; font-weight: 600; color: var(--a-text); }
+.a-word-label em { font-style: normal; font-weight: 400; color: var(--a-muted); font-size: 11px; }
+.a-word-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.a-word-inputs label { display: flex; flex-direction: column; gap: 4px; }
+.a-word-inputs label > span { color: var(--a-muted); font-size: 10px; text-transform: uppercase; letter-spacing: .09em; }
+.a-word-inputs textarea { resize: vertical; }
+.a-word-reset { position: absolute; top: 9px; right: 10px; display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border: 1px solid var(--a-line); border-radius: 99px; background: var(--a-surface-2); color: var(--a-muted); font-size: 10.5px; }
+.a-word-reset:hover { color: var(--a-text); border-color: var(--a-line-strong); }
+.a-hint--standalone { margin: -2px 0 2px; }
+
+@media (max-width: 640px) {
+  .a-word-inputs { grid-template-columns: 1fr; }
+  .a-word-reset { position: static; margin-top: 8px; }
+}
+
+/* The base input rule outranks `.a-search input`, so the icon overlapped the text. */
+.a-shell .a-search input { padding-left: 34px; }
